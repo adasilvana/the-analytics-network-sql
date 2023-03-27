@@ -40,9 +40,8 @@ limit 5
 ;
 
 -- 7. Mostrar los primeros 10 registros del conteo de trafico por Super store ordenados por fecha.
-select *
+select * 
 from stg.super_store_count
-order by fecha asc
 limit 10
 ;
 
