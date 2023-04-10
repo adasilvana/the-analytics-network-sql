@@ -75,6 +75,7 @@ from stg.order_line_sale
 where fecha between '2022-10-01' and '2022-11-10'
 
 
+
 -- Homework clase 2
 
 -- 1. Cuales son los paises donde la empresa tiene tiendas?
@@ -167,4 +168,119 @@ order by 1, 2
 select orden, round(sum(impuestos)/sum(venta)*100,2)
 from stg.order_line_sale
 group by 1
+;
+
+
+
+-- Homework clase 3
+
+-- 1. Mostrar nombre y codigo de producto, categoria y color para todos los productos de la marca Philips y Samsung, mostrando la leyenda "Unknown" cuando no hay un color disponible
+select nombre, codigo_producto, categoria, coalesce(color,'Unknown') as color
+from stg.product_master
+where upper(nombre) like '%PHILIPS%' OR upper(nombre) like '%SAMSUNG%'
+;
+
+-- 2. Calcular las ventas brutas y los impuestos pagados por pais y provincia en la moneda correspondiente.
+select sm.pais, sm.provincia, ols.moneda, sum(ols.venta) as ventas_brutas, sum(ols.impuestos) as impuestos_pagados
+from stg.order_line_sale ols
+left join stg.store_master sm
+on ols.tienda = sm.codigo_tienda
+group by 1, 2, 3
+;
+
+-- 3. Calcular las ventas totales por subcategoria de producto para cada moneda ordenados por subcategoria y moneda.
+select pm.subcategoria, ols.moneda, sum(ols.venta) as ventas_totales
+from stg.order_line_sale ols
+left join stg.product_master pm
+on ols.producto = pm.codigo_producto
+group by 1, 2
+order by 1, 2
+;
+
+-- 4. Calcular las unidades vendidas por subcategoria de producto y la concatenacion de pais, provincia; usar guion como separador y usarla para ordernar el resultado.
+select 
+  pm.subcategoria, 
+  sm.pais || '-' || sm.provincia as pais_provincia, 
+  sum(ols.cantidad) as unidades_vendidas
+from stg.order_line_sale ols
+left join stg.product_master pm
+on ols.producto = pm.codigo_producto
+left join stg.store_master sm
+on ols.tienda = sm.codigo_tienda
+group by 1, 2
+order by 2
+;
+
+-- 5. Mostrar una vista donde sea vea el nombre de tienda y la cantidad de entradas de personas que hubo desde la fecha de apertura para el sistema "super_store".
+select tienda, sum(conteo) as conteo
+from stg.super_store_count
+group by 1
+;
+
+-- 6. Cual es el nivel de inventario promedio en cada mes a nivel de codigo de producto y tienda; mostrar el resultado con el nombre de la tienda.
+select sku, tienda, extract(month from fecha) as mes, sum((inicial+final)/2) as inventario_medio_total
+from stg.inventory
+group by 1, 2, 3
+;
+
+-- 7. Calcular la cantidad de unidades vendidas por material. Para los productos que no tengan material usar 'Unknown', homogeneizar los textos si es necesario.
+select upper(coalesce(pm.material, 'Unknown')) as material, sum(ols.cantidad) as cantidad_total
+from stg.order_line_sale ols
+left join stg.product_master pm
+on ols.producto = pm.codigo_producto
+group by 1
+order by 1
+;
+
+-- 8. Mostrar la tabla order_line_sales agregando una columna que represente el valor de venta bruta en cada linea convertido a dolares usando la tabla de tipo de cambio.
+select *,
+  case when ols.moneda = 'ARS' then ols.venta * ma.cotizacion_usd_peso 
+  when ols.moneda = 'EUR' then ols.venta * ma.cotizacion_usd_eur
+  when ols.moneda = 'URU' then ols.venta * ma.cotizacion_usd_uru
+  end as ventas_usd
+from stg.order_line_sale ols
+left join stg.monthly_average_fx_rate ma
+on extract(month from ols.fecha) = extract(month from ma.mes) and extract(year from ols.fecha) = extract(year from ma.mes)
+;
+
+-- 9. Calcular cantidad de ventas totales de la empresa en dolares.
+with usd as(
+select
+  case when ols.moneda = 'ARS' then ols.venta * ma.cotizacion_usd_peso 
+  when ols.moneda = 'EUR' then ols.venta * ma.cotizacion_usd_eur
+  when ols.moneda = 'URU' then ols.venta * ma.cotizacion_usd_uru
+  end as ventas_usd
+from stg.order_line_sale ols
+left join stg.monthly_average_fx_rate ma
+on extract(month from ols.fecha) = extract(month from ma.mes) and extract(year from ols.fecha) = extract(year from ma.mes))
+select round(sum(ventas_usd),2) as ventas_totales_usd from ventas_usd
+;
+
+-- 10. Mostrar en la tabla de ventas el margen de venta por cada linea. Siendo margen = (venta - promociones) - costo expresado en dolares.
+with usd as(
+select
+  *,
+  case when ols.moneda = 'ARS' then ols.venta * ma.cotizacion_usd_peso 
+  when ols.moneda = 'EUR' then ols.venta * ma.cotizacion_usd_eur
+  when ols.moneda = 'URU' then ols.venta * ma.cotizacion_usd_uru
+  end as ventas_usd,
+  case when ols.moneda = 'ARS' then ols.descuento * ma.cotizacion_usd_peso 
+  when ols.moneda = 'EUR' then ols.descuento * ma.cotizacion_usd_eur
+  when ols.moneda = 'URU' then ols.descuento * ma.cotizacion_usd_uru
+  end as descuento_usd
+from stg.order_line_sale ols
+left join stg.monthly_average_fx_rate ma
+on extract(month from ols.fecha) = extract(month from ma.mes) and extract(year from ols.fecha) = extract(year from ma.mes))
+select usd.orden, (usd.ventas_usd - coalesce(usd.descuento_usd, 0)) - coalesce(costo_promedio_usd, 0) as margen
+from usd usd
+left join stg.cost cos
+on usd.producto = cos.codigo_producto
+;
+
+-- 11. Calcular la cantidad de items distintos de cada subsubcategoria que se llevan por numero de orden.
+select pm.subsubcategoria, ols.orden, count(distinct(ols.producto)) as items_distintos
+from stg.order_line_sale ols
+left join stg.product_master pm
+on ols.producto = pm.codigo_producto
+group by 1, 2									
 ;
