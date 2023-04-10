@@ -284,3 +284,79 @@ left join stg.product_master pm
 on ols.producto = pm.codigo_producto
 group by 1, 2									
 ;
+
+-- Homework clase 4
+
+-- 1. Crear un backup de la tabla product_master. Utilizar un esquema llamada "bkp" y agregar un prefijo al nombre de la tabla con la fecha del backup en forma de numero entero.
+create schema bkp
+;
+select *
+into bkp.product_master_20220410
+from stg.product_master
+
+-- 2. Hacer un update a la nueva tabla (creada en el punto anterior) de product_master agregando la leyendo "N/A" para los valores null de material y color. Pueden utilizarse dos sentencias.
+update bkp.product_master_20220410 set material = 'N/A' where material is null
+;
+update bkp.product_master_20220410 set color = 'N/A' where color is null
+
+-- 3. Hacer un update a la tabla del punto anterior, actualizando la columa "is_active", desactivando todos los productos en la subsubcategoria "Control Remoto".
+update bkp.product_master_20220410 set is_active = false where subsubcategoria = 'Control remoto'
+
+-- 4. Agregar una nueva columna a la tabla anterior llamada "is_local" indicando los productos producidos en Argentina y fuera de Argentina.
+alter table bkp.product_master_20220410
+add column is_local boolean
+;
+update bkp.product_master_20220410 set is_local = case when origen = 'Argentina' then true else false end
+
+-- 5. Agregar una nueva columna a la tabla de ventas llamada "line_key" que resulte ser la concatenacion de el numero de orden y el codigo de producto.
+alter table stg.order_line_sale
+add column line_key varchar(255)
+;
+update stg.order_line_sale set line_key = orden || '-' || producto 
+
+-- 6. Eliminar todos los valores de la tabla "order_line_sale" para el POS 1.
+delete from stg.order_line_sale where pos = 1
+
+-- 7. Crear una tabla llamada "employees" (por el momento vacia) que tenga un id (creado de forma incremental), nombre, apellido, fecha de entrada, fecha salida, telefono, pais, provincia, codigo_tienda, posicion. Decidir cual es el tipo de dato mas acorde.
+DROP TABLE IF EXISTS bkp.employees ;
+CREATE TABLE bkp.employees
+                 (
+                              id_empleado     serial primary key
+                            , nombre          VARCHAR(255)
+                            , apellido        VARCHAR(255)
+                            , fecha_entrada   DATE
+                            , fecha_salida    DATE
+                            , telefono        VARCHAR(255)
+                            , pais            VARCHAR(255)
+                            , provincia       VARCHAR(255)
+                            , codigo_tienda   smallint
+                            , posicion        VARCHAR(255)
+                 )
+;
+select *
+from bkp.employees
+;
+
+-- 8. Insertar nuevos valores a la tabla "employees" para los siguientes 4 empleados:
+-- · Juan Perez, 2022-01-01, telefono +541113869867, Argentina, Santa Fe, tienda 2, Vendedor.
+-- · Catalina Garcia, 2022-03-01, Argentina, Buenos Aires, tienda 2, Representante Comercial
+-- · Ana Valdez, desde 2020-02-21 hasta 2022-03-01, España, Madrid, tienda 8, Jefe Logistica
+-- · Fernando Moralez, 2022-04-04, España, Valencia, tienda 9, Vendedor.
+insert into bkp.employees (nombre, apellido, fecha_entrada, fecha_salida, telefono, pais, provincia, codigo_tienda, posicion)
+values ('Juan', 'Perez', '2022-01-01', null, '+541113869867', 'Argentina', 'Santa Fe', 2, 'Vendedor'),
+       ('Catalina', 'Garcia', '2022-03-01', null, null, 'Argentina', 'Buenos Aires', 2, 'Representante Comercial'),
+	   ('Ana', 'Valdez', '2020-02-21', '2022-03-01', null, 'España', 'Madrid', 8, 'Jefe Logistica'),
+	   ('Fernando', 'Moralez', '2022-04-04', null, null, 'España', 'Valencia', 9, 'Vendedor')
+;
+
+-- 9. Crear un backup de la tabla "cost" agregandole una columna que se llame "last_updated_ts" que sea el momento exacto en el cual estemos realizando el backup en formato datetime.
+select *, current_timestamp as backup_date
+into bkp.cost_20220410
+from stg.cost
+;
+select *
+from bkp.cost_20220410
+;
+
+-- 10. El cambio en la tabla "order_line_sale" en el punto 6 fue un error y debemos volver la tabla a su estado original, como lo harias?
+Por lo que he podido averiguar, podríamos hacer un restore escogiendo un momento del tiempo previo al cambio erroneo que hemos realizado, o podríamos usar un insert into para introducir de nuevo los datos manualmente.
