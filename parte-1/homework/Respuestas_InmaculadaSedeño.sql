@@ -48,7 +48,7 @@ limit 10
 -- 8. Cuales son los producto de electro que no son Soporte de TV ni control remoto.
 select *
 from stg.product_master
-where categoria = 'Electro' and subsubcategoria not in ('TV', 'Control remoto')
+where categoria = 'Electro' and subsubcategoria not in ('Soporte', 'Control remoto')
 ;
 
 -- 9. Mostrar todas las lineas de venta donde el monto sea mayor a $100.000 solo para transacciones en pesos.
@@ -99,7 +99,7 @@ where moneda = 'ARS' and venta > 100000
 -- 4. Obtener los descuentos otorgados durante Noviembre de 2022 en cada una de las monedas?
 select moneda, sum(descuento)
 from stg.order_line_sale
-where extract(month from fecha)=10
+where extract(month from fecha)=11
 group by 1
 order by 2 desc
 ;
@@ -117,14 +117,13 @@ where creditos is not null
 ;
 
 -- 7. Cual es el % de descuentos otorgados (sobre las ventas) por tienda?
-select tienda, avg(descuento/venta*100) as porcentaje_descuentos_otorgados
+select tienda, round(sum(descuento)/sum(venta)*-100,2) as porcentaje_descuentos_otorgados
 from stg.order_line_sale
 group by 1
-order by 2 desc
 ;
 
 -- 8. Cual es el inventario promedio por dia que tiene cada tienda?
-select tienda, fecha, sum((inicial+final)/2) as inventario_medio_total
+select tienda, fecha, (sum(inicial)+sum(final))/2 as inventario_medio_total
 from stg.inventory
 group by 1,2
 order by 1,2
@@ -233,10 +232,10 @@ order by 1
 ;
 
 -- 8. Mostrar la tabla order_line_sales agregando una columna que represente el valor de venta bruta en cada linea convertido a dolares usando la tabla de tipo de cambio.
-select *,
-  case when ols.moneda = 'ARS' then ols.venta * ma.cotizacion_usd_peso 
-  when ols.moneda = 'EUR' then ols.venta * ma.cotizacion_usd_eur
-  when ols.moneda = 'URU' then ols.venta * ma.cotizacion_usd_uru
+select ols.*,
+  case when ols.moneda = 'ARS' then ols.venta/ma.cotizacion_usd_peso 
+  when ols.moneda = 'EUR' then ols.venta/ma.cotizacion_usd_eur
+  when ols.moneda = 'URU' then ols.venta/ma.cotizacion_usd_uru
   end as ventas_usd
 from stg.order_line_sale ols
 left join stg.monthly_average_fx_rate ma
@@ -244,37 +243,28 @@ on extract(month from ols.fecha) = extract(month from ma.mes) and extract(year f
 ;
 
 -- 9. Calcular cantidad de ventas totales de la empresa en dolares.
-with usd as(
 select
-  case when ols.moneda = 'ARS' then ols.venta * ma.cotizacion_usd_peso 
-  when ols.moneda = 'EUR' then ols.venta * ma.cotizacion_usd_eur
-  when ols.moneda = 'URU' then ols.venta * ma.cotizacion_usd_uru
-  end as ventas_usd
+  round(sum(ols.venta/(case when ols.moneda = 'ARS' then ma.cotizacion_usd_peso 
+  when ols.moneda = 'EUR' then ma.cotizacion_usd_eur
+  when ols.moneda = 'URU' then ma.cotizacion_usd_uru
+  end)),2) as ventas_usd_totales
 from stg.order_line_sale ols
 left join stg.monthly_average_fx_rate ma
-on extract(month from ols.fecha) = extract(month from ma.mes) and extract(year from ols.fecha) = extract(year from ma.mes))
-select round(sum(ventas_usd),2) as ventas_totales_usd from ventas_usd
+on extract(month from ols.fecha) = extract(month from ma.mes) and extract(year from ols.fecha) = extract(year from ma.mes)
 ;
 
 -- 10. Mostrar en la tabla de ventas el margen de venta por cada linea. Siendo margen = (venta - promociones) - costo expresado en dolares.
-with usd as(
 select
-  *,
-  case when ols.moneda = 'ARS' then ols.venta * ma.cotizacion_usd_peso 
-  when ols.moneda = 'EUR' then ols.venta * ma.cotizacion_usd_eur
-  when ols.moneda = 'URU' then ols.venta * ma.cotizacion_usd_uru
-  end as ventas_usd,
-  case when ols.moneda = 'ARS' then ols.descuento * ma.cotizacion_usd_peso 
-  when ols.moneda = 'EUR' then ols.descuento * ma.cotizacion_usd_eur
-  when ols.moneda = 'URU' then ols.descuento * ma.cotizacion_usd_uru
-  end as descuento_usd
+  ols.*, round((ols.venta - coalesce(ols.descuento, 0))/(case 
+  when ols.moneda = 'ARS' then ma.cotizacion_usd_peso 
+  when ols.moneda = 'EUR' then ma.cotizacion_usd_eur
+  when ols.moneda = 'URU' then ma.cotizacion_usd_uru
+  end) - coalesce(cos.costo_promedio_usd, 0),2) as margen
 from stg.order_line_sale ols
 left join stg.monthly_average_fx_rate ma
-on extract(month from ols.fecha) = extract(month from ma.mes) and extract(year from ols.fecha) = extract(year from ma.mes))
-select usd.orden, (usd.ventas_usd - coalesce(usd.descuento_usd, 0)) - coalesce(costo_promedio_usd, 0) as margen
-from usd usd
+on extract(month from ols.fecha) = extract(month from ma.mes) and extract(year from ols.fecha) = extract(year from ma.mes)
 left join stg.cost cos
-on usd.producto = cos.codigo_producto
+on ols.producto = cos.codigo_producto
 ;
 
 -- 11. Calcular la cantidad de items distintos de cada subsubcategoria que se llevan por numero de orden.
