@@ -1,10 +1,14 @@
 /*  Ejercicio Integrador
-Luego de un tiempo de haber respondido todas las preguntas puntuales por los gerentes, la empresa decide ampliar el contrato para mejorar las bases de reporte de datos. Para esto quiere definir una serie de KPIs (Key Performance Indicator) que midan la salud de la empresa en diversas areas y ademas mostrar el valor actual y la evolucion en el tiempo.
-Por cada KPI listado vamos a tener que generar al menos una query (pueden ser mas de una) que nos devuelva el valor del KPI en cada mes, mostrando el resultado para todos los meses disponibles.
+Luego de un tiempo de haber respondido todas las preguntas puntuales por los gerentes, la empresa decide ampliar el contrato para mejorar las bases de reporte de datos. 
+Para esto quiere definir una serie de KPIs (Key Performance Indicator) que midan la salud de la empresa en diversas areas y ademas mostrar el valor actual y la evolucion 
+en el tiempo. Por cada KPI listado vamos a tener que generar al menos una query (pueden ser mas de una) que nos devuelva el valor del KPI en cada mes, mostrando el 
+resultado para todos los meses disponibles.
 
 Todos los valores monetarios deben ser calculados en dolares usando el tipo de cambio promedio mensual.
 
-El objetivo no es solo encontrar la query que responda la metrica sino entender que datos necesitamos, que es lo que significa y como armar el KPI General */
+El objetivo no es solo encontrar la query que responda la metrica sino entender que datos necesitamos, que es lo que significa y como armar el KPI General 
+
+Por otro lado tambien necesitamos crear y subir a nuestra DB la tabla "return_movements" para poder utilizarla en la segunda parte.*/
 
 -- *KPIs General*
 -- · Ventas brutas, netas y margen
@@ -213,7 +217,7 @@ group by 1,2
 order by 1,2
 ;
 
--- Por otro lado tambien necesitamos crear y subir a nuestra DB la tabla "return_movements" para poder utilizarla en la segunda parte.
+
 
 -- *Preguntas de entrevistas*
 -- 1. Como encuentro duplicados en una tabla. Dar un ejemplo mostrando duplicados de la columna orden en la tabla de ventas.
@@ -221,8 +225,7 @@ select orden, count(*)
 from stg.order_line_sale
 group by 1
 having count(*)>1
--- Estan duplicadas ya que hay varios productos comprados dentro de una misma orden.
--- Tambien se podría hacer con row number de la siguiente manera
+-- Estan duplicadas ya que hay varios productos comprados dentro de una misma orden. Tambien se podría hacer con row number de la siguiente manera
 select
   orden,
   row_number() over(
@@ -231,7 +234,7 @@ select
 from stg.order_line_sale
 ;
 
-2. Como elimino duplicados?
+-- 2. Como elimino duplicados?
 with duplicado as (
     select
   orden,
@@ -244,14 +247,11 @@ delete from duplicado
 where row_num > 1;
 
 -- 3. Cual es la diferencia entre UNION y UNION ALL.
--- Ambos sirven para unir dos tablas, pero UNION une unicamente aquellas filas que no estan duplicadas 
--- entre ambas, es decir, si hay la misma fila en las dos tablas solo la va a coger una vez, mientras 
--- que UNION ALL va a coger todas les filas, sin importar que esten duplicadas.
+Ambos sirven para unir dos tablas, pero UNION une unicamente aquellas filas que no estan duplicadas entre ambas, es decir, si hay la misma fila en las dos tablas 
+solo la va a coger una vez, mientras que UNION ALL va a coger todas les filas, sin importar que esten duplicadas.
 
--- 4. Como encuentro registros en una tabla que no estan en otra tabla. 
--- Para probar podes crear dos tablas con una unica columna id que tengan valores: Tabla 1: 1,2,3,4 Tabla 2: 3,4,5,6
--- Haciendo un LEFT JOIN y estableciendo una condición con where para filtrar únicamente por los valores
--- que son nulos en la tabla dos, es decir, los que no coinciden. 
+-- 4. Como encuentro registros en una tabla que no estan en otra tabla. Para probar podes crear dos tablas con una unica columna id que tengan valores: Tabla 1: 1,2,3,4 Tabla 2: 3,4,5,6
+Haciendo un LEFT JOIN y estableciendo una condición con where para filtrar únicamente por los valores que son nulos en la tabla dos, es decir, los que no coinciden. 
 DROP TABLE IF EXISTS bkp.ejemplo1 ;
 DROP TABLE IF EXISTS bkp.ejemplo2 ;
 Create table bkp.ejemplo1 (id int);
@@ -266,8 +266,8 @@ where e2.id is null
 ;
 
 -- 6. Cual es la diferencia entre INNER JOIN y LEFT JOIN. (podes usar la tabla anterior)
--- El inner join me va a coger únicamente los valores que coinciden en ambas tablas, mientras que el left
--- join va a coger todos los valores de la primera tabla y de la segunda solamente aquellos que coincidan.
+El inner join me va a coger únicamente los valores que coinciden en ambas tablas, mientras que el left join va a coger todos los valores de la primera tabla y de la 
+segunda solamente aquellos que coincidan.
 SELECT *
 FROM bkp.ejemplo1 e1
 left join bkp.ejemplo2 e2
