@@ -225,7 +225,7 @@ select orden, count(*)
 from stg.order_line_sale
 group by 1
 having count(*)>1
--- Estan duplicadas ya que hay varios productos comprados dentro de una misma orden. Tambien se podría hacer con row number de la siguiente manera
+-- Estan duplicadas ya que hay varios productos comprados dentro de una misma orden. También se podría hacer con row_number de la siguiente manera
 select
   orden,
   row_number() over(
@@ -246,9 +246,9 @@ from stg.order_line_sale
 delete from duplicado
 where row_num > 1;
 
--- 3. Cual es la diferencia entre UNION y UNION ALL.
-Ambos sirven para unir dos tablas, pero UNION une unicamente aquellas filas que no estan duplicadas entre ambas, es decir, si hay la misma fila en las dos tablas 
-solo la va a coger una vez, mientras que UNION ALL va a coger todas les filas, sin importar que esten duplicadas.
+-- 3. Cuál es la diferencia entre UNION y UNION ALL.
+Ambos sirven para unir dos tablas, pero UNION une únicamente aquellas filas que no estan duplicadas entre ambas, es decir, si hay la misma fila en las dos tablas 
+solo la va a coger una vez; mientras que UNION ALL va a coger todas las filas, sin importar que esten duplicadas.
 
 -- 4. Como encuentro registros en una tabla que no estan en otra tabla. Para probar podes crear dos tablas con una unica columna id que tengan valores: Tabla 1: 1,2,3,4 Tabla 2: 3,4,5,6
 Haciendo un LEFT JOIN y estableciendo una condición con where para filtrar únicamente por los valores que son nulos en la tabla dos, es decir, los que no coinciden. 
