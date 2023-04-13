@@ -138,9 +138,9 @@ order by 2 desc
 ;
 
 -- 10. Las tablas "market_count" y "super_store_count" representan dos sistemas distintos que usa la empresa para contar la cantidad de gente que ingresa a tienda, uno para las tiendas de Latinoamerica y otro para Europa. Obtener en una unica tabla, las entradas a tienda de ambos sistemas.
-select tienda, cast(fecha as varchar(10)) as fecha, conteo from stg.market_count
+select tienda, cast(cast(fecha as text) as date), conteo from stg.market_count
 union all
-select tienda, cast(fecha as varchar(10)) as fecha, conteo from stg.super_store_count
+select tienda, cast(fecha as date), conteo from stg.super_store_count
 ;
 
 -- 11. Cuales son los productos disponibles para la venta (activos) de la marca Phillips?
