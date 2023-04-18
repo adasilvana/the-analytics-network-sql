@@ -99,7 +99,7 @@ where moneda = 'ARS' and venta > 100000
 -- 4. Obtener los descuentos otorgados durante Noviembre de 2022 en cada una de las monedas?
 select moneda, sum(descuento)
 from stg.order_line_sale
-where extract(month from fecha)=11
+where extract(month from fecha)=11 and extract(year from fecha)=2022
 group by 1
 order by 2 desc
 ;
@@ -111,7 +111,7 @@ where extract(year from fecha)=2022 and moneda='EUR'
 ;
 
 -- 6. En cuantas ordenes se utilizaron creditos?
-select count(orden)
+select count(distinct orden)
 from stg.order_line_sale
 where creditos is not null
 ;
@@ -123,7 +123,7 @@ group by 1
 ;
 
 -- 8. Cual es el inventario promedio por dia que tiene cada tienda?
-select tienda, fecha, (sum(inicial)+sum(final))/2 as inventario_medio_total
+select tienda, fecha, round(avg((inicial + final)/2), 2) as inventario_medio_total
 from stg.inventory
 group by 1,2
 order by 1,2
@@ -217,9 +217,11 @@ group by 1
 ;
 
 -- 6. Cual es el nivel de inventario promedio en cada mes a nivel de codigo de producto y tienda; mostrar el resultado con el nombre de la tienda.
-select sku, tienda, extract(month from fecha) as mes, sum((inicial+final)/2) as inventario_medio_total
-from stg.inventory
-group by 1, 2, 3
+select inv.sku, sm.nombre, inv.tienda, extract(month from inv.fecha) as mes, round(avg((inv.inicial+inv.final)/2),2) as inventario_medio_total
+from stg.inventory inv
+left join stg.store_master sm
+on inv.tienda = sm.codigo_tienda
+group by 1, 2, 3, 4
 ;
 
 -- 7. Calcular la cantidad de unidades vendidas por material. Para los productos que no tengan material usar 'Unknown', homogeneizar los textos si es necesario.
