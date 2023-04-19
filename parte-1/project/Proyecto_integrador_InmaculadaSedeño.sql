@@ -59,41 +59,57 @@ order by 1, 2
 ;
 
 -- · ROI por categoria de producto. ROI = Valor promedio de inventario / ventas netas
+with costo_inventario as (
 select 
-  pm.categoria,
-  extract (month from ols.fecha) as mes,
-  round(sum((inv.inicial+inv.final)/2 * coalesce(cos.costo_promedio_usd, 0))/sum((ols.venta/(case 
-  when ols.moneda = 'ARS' then fx.cotizacion_usd_peso 
+  extract(month from inv.fecha) as mes,
+  inv.sku,
+  avg((inicial+final)/2 * cos.costo_promedio_usd) as cost_usd
+from stg.inventory inv
+left join stg.cost cos
+on cos.codigo_producto = inv.sku
+group by 1,2
+)
+, ventas_items as(
+select
+  producto,
+  extract(month from fecha) as mes,
+  sum(round(ols.venta/(case when ols.moneda = 'ARS' then fx.cotizacion_usd_peso 
   when ols.moneda = 'EUR' then fx.cotizacion_usd_eur
   when ols.moneda = 'URU' then fx.cotizacion_usd_uru
-  end))), 2) as ROI
+  end), 2)) as venta_bruta_usd
 from stg.order_line_sale ols
 left join stg.monthly_average_fx_rate fx
 on fx.mes = date(date_trunc('month', ols.fecha))
-left join stg.cost cos
-on ols.producto = cos.codigo_producto
-left join stg.inventory inv
-on ols.producto = inv.sku
-left join stg.product_master pm
-on ols.producto = pm.codigo_producto
 group by 1, 2
-order by 1, 2
-;
+)
+select 
+  coalesce(ci.mes, vi.mes) as mes,
+  --coalesce(ci.sku, vi.producto) as producto,
+  pm.categoria,
+  --cost_usd,
+  --venta_bruta_usd,
+  sum(coalesce(venta_bruta_usd, 0))/sum(cost_usd) as ROI
+from costo_inventario ci
+full outer join ventas_items vi
+on ci.sku = vi.producto and vi.mes = ci.mes
+left join stg.product_master pm
+on coalesce(ci.sku, vi.producto) = pm.codigo_producto
+where coalesce(ci.mes, vi.mes) = 11 -- filtramos mes porque solo tenemos un mes de inventario
+group by 1,2
 
 -- · AOV (Average order value), valor promedio de la orden.
 select 
-  ols.orden,
   extract (month from ols.fecha) as mes,
-  round(sum((ols.venta/ols.cantidad)/(case 
+  round(sum(ols.venta/(case 
   when ols.moneda = 'ARS' then fx.cotizacion_usd_peso 
   when ols.moneda = 'EUR' then fx.cotizacion_usd_eur
   when ols.moneda = 'URU' then fx.cotizacion_usd_uru
-  end)), 2) as AOV
+  end))/count(ols.orden), 2) as AOV
 from stg.order_line_sale ols
 left join stg.monthly_average_fx_rate fx
 on fx.mes = date(date_trunc('month', ols.fecha))
-group by 1, 2
-order by 1, 2
+group by 1
+order by 1
 ;
 
 -- *Contabilidad*
@@ -117,7 +133,7 @@ order by 1
 -- · Tasa de impuesto. Impuestos / Ventas netas
 select 
   extract (month from ols.fecha) as mes,
-  round(sum(ols.impuestos)/sum(ols.venta-ols.impuestos),2) as tasa_de_impuesto
+  round(sum(ols.impuestos)/sum(ols.venta+ols.descuento),2) as tasa_de_impuesto
 from stg.order_line_sale ols
 group by 1
 order by 1
@@ -159,7 +175,7 @@ order by 1,2
 select 
   inv.tienda,
   extract (month from inv.fecha) as mes,
-  round(sum((inv.inicial+inv.final)/2 * coalesce(cos.costo_promedio_usd, 0)), 2) as costo_inventario
+  round(avg((inv.inicial+inv.final)/2 * coalesce(cos.costo_promedio_usd, 0)), 2) as costo_inventario
 from stg.inventory inv
 left join stg.cost cos
 on inv.sku = cos.codigo_producto
@@ -168,13 +184,21 @@ order by 1, 2
 ;
 
 -- · Costo del stock de productos que no se vendieron por tienda
+with no_vendidos as(
+select distinct codigo_producto
+from stg.product_master pm 
+left join stg.order_line_sale ols
+on pm.codigo_producto = ols.producto
+where producto is null)
 select 
   inv.tienda,
   extract (month from inv.fecha) as mes,
-  round(sum(inv.final * coalesce(cos.costo_promedio_usd, 0)), 2) as costo_inventario
+  round(avg((inv.inicial+inv.final)/2 * coalesce(cos.costo_promedio_usd, 0)), 2) as costo_inventario
 from stg.inventory inv
 left join stg.cost cos
 on inv.sku = cos.codigo_producto
+inner join no_vendidos nv
+on nv.codigo_producto = inv.sku 
 group by 1, 2
 order by 1, 2
 ;
