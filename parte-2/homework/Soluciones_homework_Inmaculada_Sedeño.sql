@@ -432,3 +432,90 @@ select
 	cast(fecha - interval'1 year' as date) as fecha_anno_anterior
 from base_fecha)
 ; 
+
+
+
+-- *Homework clase 9*
+
+-- Clase 9
+-- 1. Calcular el crecimiento de ventas por tienda mes a mes, con el valor nominal y el valor % de crecimiento. Utilizar self join.
+with ventas_mes_usd as
+(select 
+    ols.tienda,
+    extract(month from ols.fecha) as mes,
+    sum(round(ols.venta/(case 
+    when ols.moneda = 'EUR' then mfx.cotizacion_usd_eur
+    when ols.moneda = 'ARS' then mfx.cotizacion_usd_peso
+    when ols.moneda = 'URU' then mfx.cotizacion_usd_uru
+    else 0 end),1)) as venta_bruta_usd
+from stg.order_line_sale ols
+left join stg.monthly_average_fx_rate mfx 
+	on extract(month from mfx.mes) = extract(month from ols.fecha) 
+	and extract(year from mfx.mes) = extract(year from ols.fecha) 
+group by 1,2
+order by 1,2)
+select vm.tienda, 
+	   vm.mes, 
+	   vm2.mes as mes_anterior, 
+	   vm.venta_bruta_usd - vm2.venta_bruta_usd as crecimiento_valor_nominal, 
+	   round(((vm.venta_bruta_usd*1.0 - vm2.venta_bruta_usd*1.0)  / vm2.venta_bruta_usd *1.0) * 100, 2) as crecimiento_porcentual
+from ventas_mes_usd vm
+inner join ventas_mes_usd vm2
+on vm.tienda = vm2.tienda and vm.mes > vm2.mes
+;
+
+-- 2. Hacer un update a la tabla de product_master agregando una columna llamada "marca", con la marca de cada producto con la primer letra en mayuscula. Sabemos que las marcas que tenemos son: Levi's, Tommy Hilfiger, Samsung, Phillips, Acer, JBL y Motorola. En caso de no encontrarse en la lista usar 'Unknown'.
+alter table stg.product_master
+add marca varchar(200)
+;
+update stg.product_master set marca = (case when upper(nombre) like '%LEVI%' then 'Levi´s'
+	when upper(nombre) like '%TOMMY%' then 'Tommy Hilfiger'
+	when upper(nombre) like '%SAMSUNG%' then 'Samsung'
+	when upper(nombre) like '%PHILIPS%' then 'Philips'
+	when upper(nombre) like '%ACER%' then 'Acer'
+	when upper(nombre) like '%JBL%' then 'JBL'
+	when upper(nombre) like '%MOTOROLA%' then 'Motorola' else 'Unknown' end)
+;
+
+-- 3. Un jefe de area tiene una tabla que contiene datos sobre las principales empresas de distintas industrias en rubros que pueden ser competencia:
+/* EMPRESA				RUBRO			FACTURACIÓN
+El Corte Ingles		Departamental		 $110.99B
+Mercado Libre		   ECOMMERCE	     $115.86B
+Fallabela	        Departamental	     $20.46M
+Tienda Inglesa	    Departamental	     $10,78M
+Zara			    INDUMENTARIA	     $999.98M */
+-- Armar una query que refleje lo siguiente: 
+-- Rubro
+-- FacturacionTotal (total de facturación por rubro).
+-- Ordenadas por la columna rubro en orden ascendente.
+-- La columna FacturacionTotal debe estar expresada en millones/billones según corresponda y con 2 decimales después de la coma. Los elementos de la columna rubro debe estar expresados en letra minúscula.
+-- Output esperado:
+/*  RUBRO			FACTURACIÓN
+Departamental		 $111.01B
+  ECOMMERCE	         $115.86B
+INDUMENTARIA	     $999.98M */
+drop table if exists bkp.empresas
+;
+create table bkp.empresas (
+	empresa varchar(200),
+	rubro varchar(200),
+    facturación bigint)
+;
+insert into bkp.empresas values ('El Corte Ingles','Departamental',110990000000), 
+								('Mercado Libre','ECOMMERCE',115860000000),
+								('Fallabela','Departamental',20460000),
+								('Tienda Inglesa','Departamental', 10780000),
+								('Zara','INDUMENTARIA', 999980000)
+;
+with formato as(
+select 
+		lower(rubro) as rubro,
+		sum(facturación) as total_facturación
+from bkp.empresas
+group by 1
+order by 1 asc)
+select rubro, case when total_facturación > 1000000000 then concat('$', to_char(total_facturación/1000000000,'FM999G999G999D99'), 'B')
+		when total_facturación >= 1000000 then concat('$', to_char(total_facturación/1000000,'FM999G999D99'), 'M')
+		else concat('$', to_char(total_facturación, 'FM999G999D99')) end as facturación
+from formato
+;
