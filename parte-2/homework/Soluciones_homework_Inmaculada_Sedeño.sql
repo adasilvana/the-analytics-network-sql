@@ -253,16 +253,18 @@ where pm.subcategoria <> 'TV' and sm.pais <> 'Argentina'
 ;
 
 -- 5. El gerente de ventas quiere ver el total de unidades vendidas por dia junto con otra columna con la cantidad de unidades vendidas una semana atras y la diferencia entre ambos. Nota: resolver en dos querys usando en una CTEs y en la otra windows functions.
-with suma as (select fecha, sum(cantidad) as unidades_vendidas
-from stg.order_line_sale
-group by 1
-order by 1)
-select fecha, 
-	unidades_vendidas, 
-	lag(unidades_vendidas, 7) over (order by fecha) as unidades_vendidas_una_semana_atras, 
-	abs(unidades_vendidas - lag(unidades_vendidas, 7) over (order by fecha)) as diferencia 
-from suma
-;
+with suma as (
+	select fecha, sum(cantidad) as unidades_vendidas
+	from stg.order_line_sale
+	group by 1
+	order by 1)
+select 
+	s1.fecha,
+	s2.unidades_vendidas - s1.unidades_vendidas as diferencia
+from suma s1
+left join suma s2
+on s1.fecha = s2.fecha - interval '7days'
+where s2.unidades_vendidas - s1.unidades_vendidas is not null
 
 -- 6. Crear una vista de inventario con la cantidad de inventario por dia, tienda y producto, que ademas va a contar con los siguientes datos:
 -- · Nombre y categorias de producto
@@ -285,7 +287,7 @@ select
 	sm.pais, 
 	sm.nombre as nombre_tienda, 
 	avg((i.inicial+i.final)/2) over (partition by i.fecha, i.tienda, i.sku) * cos.costo_promedio_usd as coste_inventario,
-	case when lead(i.fecha) over (partition by i.tienda, i.sku) is null then 1 else 0 end as is_last_snapshot,
+	case when i.fecha = (select max(fecha) from stg.inventory) then True else False end as is_last_snapshot,
 	ols.venta,
 	avg((i.inicial+i.final)/2) over (partition by i.fecha, i.tienda, i.sku) as promedio_inventario,
 	avg(ols.cantidad) over(partition by ols.tienda, ols.producto order by ols.fecha asc rows between 7 preceding and current row) as Promedio_diario_unidades_vendidas_7_dias,
@@ -468,7 +470,7 @@ on vm.tienda = vm2.tienda and vm.mes > vm2.mes
 alter table stg.product_master
 add marca varchar(200)
 ;
-update stg.product_master set marca = (case when upper(nombre) like '%LEVI%' then 'Levi´s'
+update stg.product_master set marca = (case when upper(nombre) like '%LEVI%' then 'Levi''s'
 	when upper(nombre) like '%TOMMY%' then 'Tommy Hilfiger'
 	when upper(nombre) like '%SAMSUNG%' then 'Samsung'
 	when upper(nombre) like '%PHILIPS%' then 'Philips'
