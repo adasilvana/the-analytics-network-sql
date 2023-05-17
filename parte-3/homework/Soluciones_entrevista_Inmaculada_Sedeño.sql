@@ -80,7 +80,7 @@ with primera_fecha as(
 	from primera_fecha
 )
 select 
-    order_date,
+    	order_date,
 	tipo_cliente,
 	count(order_id)
 from clientes_nuevos_repetidos
