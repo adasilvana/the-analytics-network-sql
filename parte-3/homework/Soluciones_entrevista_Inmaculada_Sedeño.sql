@@ -1,6 +1,7 @@
 -- Ejercicios de entrevistas parte 3
 
--- Ejercicio 1
+
+-- **Ejercicio 1**
 
 -- Ejecutar el siguiente script para crear las siguientes tablas dentro del esquema test.
 create table test.emp_2022
@@ -40,7 +41,8 @@ where case when jerarquia23 > jerarquia22 then 'Ascendio'
 	when jerarquia22 is null then 'Incorporo' end is not null
 ;
 
--- Ejercicio 2
+
+-- **Ejercicio 2**
 
 -- Ejecutar el siguiente script para crear la tabla orders dentro del esquema test.
 create table test.orders (
@@ -87,3 +89,57 @@ from clientes_nuevos_repetidos
 group by 1,2
 order by 1
 ;
+
+
+-- **Ejercicio 3**
+
+-- Ejecutar el siguiente script para crear las tablas ordenes y productos dentro del esquema test.
+create table test.orders2(
+	order_id int,
+	customer_id int,
+	product_id int);
+
+insert into test.orders2 VALUES 
+(1, 1, 1),
+(1, 1, 2),
+(1, 1, 3),
+(2, 2, 1),
+(2, 2, 2),
+(2, 2, 4),
+(3, 1, 5);
+
+create table test.products (
+	id int,
+	name varchar(10));
+	
+insert into test.products VALUES 
+(1, 'A'),
+(2, 'B'),
+(3, 'C'),
+(4, 'D'),
+(5, 'E');
+
+-- Armar una tabla que sirva como una version simplificada de un sistema de recomendacion y muestre, cuantas ordenes se llevan por cada PAR de productos.
+with combinaciones_productos as
+(
+	select p1.id || '-' || p2.id as par_productos
+	from test.products p1
+	left join test.products p2 on p1.id <> p2.id and p1.id < p2.id
+)
+, combinaciones_productos_ordenes as
+(
+	select 
+		o1.product_id || '-' || o2.product_id as par_productos, 
+		count(o1.order_id) as total_ordenes_combinacion
+	from test.orders2 o1
+	left join test.orders2 o2 on o1.product_id <> o2.product_id and o1.product_id < o2.product_id and o1.order_id = o2.order_id
+	where o1.product_id is not null and o2.product_id is not null
+	group by 1
+	order by 2 desc
+)
+select 
+	cp.par_productos, 
+	coalesce(cpo.total_ordenes_combinacion, 0) from combinaciones_productos cp
+left join combinaciones_productos_ordenes cpo on cp.par_productos = cpo.par_productos
+where cp.par_productos is not null
+order by 2 desc
