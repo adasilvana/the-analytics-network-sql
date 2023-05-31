@@ -11,11 +11,11 @@ CREATE TABLE dim.employees
     pais varchar(255),
     provincia varchar(255),
     codigo_tienda smallint,
-    posicion varchar(255)
-	is_active boolean
-	duracion_empleado decimal
+    posicion varchar(255),
+    is_active boolean,
+    duracion_empleado decimal,
 	
-	constraint fk_tienda_id_employees
+    constraint fk_tienda_id_employees
     foreign key (codigo_tienda)
     references dim.store_master (codigo_tienda)
 );
