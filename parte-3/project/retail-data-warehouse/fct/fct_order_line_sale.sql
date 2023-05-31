@@ -2,8 +2,7 @@ DROP TABLE IF EXISTS fct.order_line_sale;
     
 CREATE TABLE fct.order_line_sale
                  (
-                              orden_id   SERIAL PRIMARY KEY
-			    , orden      VARCHAR(10) 
+                              orden      VARCHAR(10) 
                             , producto   VARCHAR(10)
                             , tienda     SMALLINT
                             , fecha      date
@@ -15,6 +14,8 @@ CREATE TABLE fct.order_line_sale
                             , moneda     varchar(3)
                             , pos        SMALLINT
                             , is_walkout BOOLEAN
+			 
+			   , PRIMARY KEY (orden, producto)
 					 
 			    , constraint fk_tienda_id_order_line_sale
                             foreign key (tienda)
