@@ -7,7 +7,7 @@ CREATE TABLE fct.market_count
                             , fecha  INTEGER
                             , conteo SMALLINT
 					 		
-			    constraint fk_tienda_id_market_count
+			    , constraint fk_tienda_id_market_count
                             foreign key (tienda)
                             references dim.store_master (codigo_tienda)
                  );
