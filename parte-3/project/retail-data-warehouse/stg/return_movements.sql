@@ -7,8 +7,8 @@ CREATE TABLE stg.return_movements
     item varchar(255),
     cantidad int,
     id_movimiento int,
-    desde character varchar(255),
-    hasta character varchar(255),
+    desde varchar(255),
+    hasta varchar(255),
     recibido_por varchar(255),
     fecha date
 );
