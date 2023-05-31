@@ -11,4 +11,4 @@ CREATE TABLE stg.return_movements
     hasta character varchar(255),
     recibido_por varchar(255),
     fecha date
-)
+);
