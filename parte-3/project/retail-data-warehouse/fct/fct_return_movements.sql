@@ -10,11 +10,11 @@ CREATE TABLE fct.return_movements
     desde varchar(255),
     hasta varchar(255),
     recibido_por varchar(255),
-    fecha date
+    fecha date,
 
-	constraint fk_orden_id_return_movements
-	foreign key (orden_venta)
-	references fct.order_line_sale (orden)
+	-- constraint fk_orden_id_return_movements
+	-- foreign key (orden_venta)
+	-- references fct.order_line_sale (orden),
 	
 	constraint fk_item_id_return_movements
 	foreign key (item)
